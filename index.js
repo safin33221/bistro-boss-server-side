@@ -10,7 +10,7 @@ app.use(express.json())
 
 
 
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.blz8y.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -27,9 +27,11 @@ async function run() {
         // Connect the client to the server	(optional starting in v4.7)
         // await client.connect();
 
-        const dataBase = client.db('bistroBoss')
-        const menuCollection = dataBase.collection('menu')
-        const cartsCollection = dataBase.collection('carts')
+
+
+        const usersCollection = client.db('bistroBoss').collection('users')
+        const menuCollection = client.db('bistroBoss').collection('menu')
+        const cartsCollection = client.db('bistroBoss').collection('carts')
 
 
         app.get('/menu', async (req, res) => {
@@ -44,12 +46,30 @@ async function run() {
             res.send(result)
         })
 
-
+        //post users data
+        app.post('/users', async (req, res) => {
+            const user = req.body;
+            const query = { email: user.email }
+            const existingUser = await usersCollection.findOne(query)
+            if (existingUser) {
+                return res.send({ message: "user already exist", insertedId: null })
+            }
+            const result = await usersCollection.insertOne(user)
+            res.send(result)
+        })
         // post add cart data in cartsCollection
         app.post('/carts', async (req, res) => {
-           
+
             const food = req.body
             const result = await cartsCollection.insertOne(food)
+            res.send(result)
+        })
+
+        //delete cart
+        app.delete('/cart/:id', async (req, res) => {
+            const id = req.params.id
+            const query = { _id: new ObjectId(id) }
+            const result = await cartsCollection.deleteOne(query)
             res.send(result)
         })
         // Send a ping to confirm a successful connection
