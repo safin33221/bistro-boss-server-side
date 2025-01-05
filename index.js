@@ -33,7 +33,11 @@ async function run() {
         const menuCollection = client.db('bistroBoss').collection('menu')
         const cartsCollection = client.db('bistroBoss').collection('carts')
 
-
+        //get user data form usercollection
+        app.get('/users', async (req, res) => {
+            const result = await usersCollection.find().toArray()
+            res.send(result)
+        })
         app.get('/menu', async (req, res) => {
             const result = await menuCollection.find().toArray()
             res.send(result)
