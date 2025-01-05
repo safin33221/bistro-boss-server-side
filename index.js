@@ -69,11 +69,24 @@ async function run() {
             res.send(result)
         })
 
+        //user user role
+        app.patch('/user/admin/:id', async (req, res) => {
+            const id = req.params.id
+            const filter = { _id: new ObjectId(id) }
+            const updateDoc = {
+                $set: {
+                    role:'admin'
+                }
+            }
+            const result = await usersCollection.updateOne(filter,updateDoc)
+            res.send(result)
+        })
+
 
         //deleted user form usecollection
         app.delete('/users/:id', async (req, res) => {
             const id = req.params.id
-            const query = {_id:new ObjectId(id)}
+            const query = { _id: new ObjectId(id) }
             const result = await usersCollection.deleteOne(query)
             res.send(result)
         })
