@@ -69,6 +69,14 @@ async function run() {
             res.send(result)
         })
 
+
+        //deleted user form usecollection
+        app.delete('/users/:id', async (req, res) => {
+            const id = req.params.id
+            const query = {_id:new ObjectId(id)}
+            const result = await usersCollection.deleteOne(query)
+            res.send(result)
+        })
         //delete cart
         app.delete('/cart/:id', async (req, res) => {
             const id = req.params.id
