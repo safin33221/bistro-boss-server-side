@@ -1,10 +1,10 @@
 const express = require('express');
 const app = express()
+require('dotenv').config()
 const jwt = require('jsonwebtoken')
 const cors = require('cors');
 const port = process.env.PORT || 5050
-require('dotenv').config()
-
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY)
 app.use(cors())
 app.use(express.json())
 
@@ -39,11 +39,12 @@ async function run() {
         const usersCollection = client.db('bistroBoss').collection('users')
         const menuCollection = client.db('bistroBoss').collection('menu')
         const cartsCollection = client.db('bistroBoss').collection('carts')
+        const paymentsCollection = client.db('bistroBoss').collection('payments')
 
         //JWT related api's
         //3rd middle for very token
         const verifyToken = (req, res, next) => {
-            console.log('inside verify token', req.headers.authorization);
+
             if (!req?.headers?.authorization) {
                 return res.status(401).send({ message: 'forbidden access' })
             }
@@ -85,7 +86,7 @@ async function run() {
 
         app.get('/users/admin/:email', verifyToken, async (req, res) => {
             const email = req.params.email;
-            console.log(email, req.decoded.email);
+
             if (email !== req.decoded.email) {
                 return res.status(403).send({ message: 'forbidden  Access' })
             }
@@ -99,6 +100,14 @@ async function run() {
         })
         app.get('/menu', async (req, res) => {
             const result = await menuCollection.find().toArray()
+            res.send(result)
+        })
+        //menu item get by id
+        app.get('/update/:id', async (req, res) => {
+            const id = req.params.id;
+
+            const filter = { _id: id }
+            const result = await menuCollection.findOne(filter)
             res.send(result)
         })
         //get add cart data from cartscolleciton
@@ -145,6 +154,22 @@ async function run() {
             const result = await usersCollection.updateOne(filter, updateDoc)
             res.send(result)
         })
+        app.patch('/menu/:id', async (req, res) => {
+            const menuData = req.body;
+            const id = req.params.id;
+            const query = { _id: id }
+            const updateDoc = {
+                $set: {
+                    name: menuData.name,
+                    category: menuData.category,
+                    price: parseFloat(menuData.price),
+                    recipe: menuData.recipe,
+                    image: menuData.image
+                }
+            }
+            const result = await menuCollection.updateOne(query, updateDoc)
+            res.send(result)
+        })
 
 
         //deleted user form usecollection
@@ -162,11 +187,43 @@ async function run() {
             res.send(result)
         })
         //deleted menu item by admin and it's secure
-    app.delete('/menu/:id', verifyToken, verifyAdmin, async (req, res) => {
+        app.delete('/menu/:id', verifyToken, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) }
             const result = await menuCollection.deleteOne(query)
             res.send(result)
+        })
+
+        //create payment intent
+        app.post('/create-payment-intent', async (req, res) => {
+            const { price } = req.body;
+            const amount = parseInt(price * 100)
+
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: "usd",
+                // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
+                payment_method_types: ['card']
+            });
+
+
+            res.send({
+                clientSecret: paymentIntent.client_secret
+            })
+        })
+        // payment history
+        app.post('/payments', async (req, res) => {
+            const payment = req.body;
+
+            const result = await paymentsCollection.insertOne(payment)
+
+            const query = {
+                _id: {
+                    $id: payment.cartIds.map(id => new ObjectId(id))
+                }
+            }
+            const deletedResult = cartsCollection.deleteMany(query)
+            res.send({ result, deletedResult })
         })
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
