@@ -212,6 +212,14 @@ async function run() {
             })
         })
         // payment history
+        app.get('/payments/:email', verifyToken, async (req, res) => {
+            const query = { email: req.params.email }
+            if (req.params.email !== req.decoded.email) {
+                return res.status(403).send({ message: "forbidden access" })
+            }
+            const result = await paymentsCollection.find(query).toArray()
+            res.send(result)
+        })
         app.post('/payments', async (req, res) => {
             const payment = req.body;
 
@@ -219,10 +227,10 @@ async function run() {
 
             const query = {
                 _id: {
-                    $id: payment.cartIds.map(id => new ObjectId(id))
+                    $in: payment.cartIds.map(id => new ObjectId(id))
                 }
             }
-            const deletedResult = cartsCollection.deleteMany(query)
+            const deletedResult = await cartsCollection.deleteMany(query)
             res.send({ result, deletedResult })
         })
         // Send a ping to confirm a successful connection
