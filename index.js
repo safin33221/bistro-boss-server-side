@@ -212,11 +212,11 @@ async function run() {
             })
         })
         // payment history
-        app.get('/payments/:email', verifyToken, async (req, res) => {
+        app.get('/payments/:email', async (req, res) => {
             const query = { email: req.params.email }
-            if (req.params.email !== req.decoded.email) {
-                return res.status(403).send({ message: "forbidden access" })
-            }
+            // if (req.params.email !== req.decoded.email) {
+            //     return res.status(403).send({ message: "forbidden access" })
+            // }
             const result = await paymentsCollection.find(query).toArray()
             res.send(result)
         })
@@ -232,6 +232,29 @@ async function run() {
             }
             const deletedResult = await cartsCollection.deleteMany(query)
             res.send({ result, deletedResult })
+        })
+        //admin stats related api's
+        app.get('/admin-stats', verifyToken, verifyAdmin, async (req, res) => {
+            const user = await usersCollection.estimatedDocumentCount()
+            const menuitems = await menuCollection.estimatedDocumentCount()
+            const orders = await paymentsCollection.estimatedDocumentCount()
+            // const payments = await paymentsCollection.find().toArray()
+            // const revinew = payments.reduce((total, item) => total + item.price, 0)
+            const result = await paymentsCollection.aggregate([
+                {
+                    $group: {
+                        _id: null,
+                        total_revenue: {
+                            $sum: '$price'
+                        }
+
+                    }
+                }
+            ]).toArray()
+            const revenue = result.length > 0 ? result[0].total_revenue : 0;
+            res.send({
+                user, menuitems, orders, revenue
+            })
         })
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
